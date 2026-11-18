@@ -36,6 +36,7 @@ public class ImportOrderJobConfig {
     @Bean
     public Job importOrderJob(JobRepository jobRepository,Step importOrderStep){
         return  new JobBuilder("importOrderJob",jobRepository)
+                //.preventRestart() // Restart etmeyi engelle
                 .start(importOrderStep)
                 .build();
     }
