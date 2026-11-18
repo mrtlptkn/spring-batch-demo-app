@@ -13,3 +13,9 @@ spring:
       enabled: false # Job'ları açılışta otomatik çalıştırma; biz controller/runner ile başlatıyoruz
     jdbc:
       initialize-schema: ALWAYS #veri tabanı tablolarını kendisi generate eder
+
+batch:
+  reject-threshold: 5   # Bu sayıdan fazla kayıt atlanırsa kredi kontrolü yapılmaz
+  input-dir: ./data/input
+  output-dir: ./data/output
+  archive-dir: ./data/archive
