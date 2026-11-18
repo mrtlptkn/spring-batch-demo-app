@@ -13,6 +13,10 @@ spring:
       enabled: false # Job'ları açılışta otomatik çalıştırma; biz controller/runner ile başlatıyoruz
     jdbc:
       initialize-schema: ALWAYS #veri tabanı tablolarını kendisi generate eder
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:sql/orders.sql
 
 batch:
   reject-threshold: 5   # Bu sayıdan fazla kayıt atlanırsa kredi kontrolü yapılmaz

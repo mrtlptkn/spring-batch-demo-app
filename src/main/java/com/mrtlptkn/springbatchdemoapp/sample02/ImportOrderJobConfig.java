@@ -16,6 +16,7 @@ public class ImportOrderJobConfig {
     private final OrderItemMappingProcessor orderItemProcessor;
     private final OrderItemWriter orderItemWriter;
 
+
     public ImportOrderJobConfig(OrderItemReader orderItemReader, OrderItemMappingProcessor orderItemProcessor, OrderItemWriter orderItemWriter) {
         this.orderItemReader = orderItemReader;
         this.orderItemProcessor = orderItemProcessor;
@@ -33,7 +34,7 @@ public class ImportOrderJobConfig {
     }
 
 
-    @Bean
+    @Bean("importOrderJob")
     public Job importOrderJob(JobRepository jobRepository,Step importOrderStep){
         return  new JobBuilder("importOrderJob",jobRepository)
                 //.preventRestart() // Restart etmeyi engelle

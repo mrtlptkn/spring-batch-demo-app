@@ -2,6 +2,8 @@ package com.mrtlptkn.springbatchdemoapp.sample02;
 
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.JobScope;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
@@ -24,7 +26,15 @@ public class RealImportOrderJobConfig {
 
     // Burada FlatFileItemReader ile csv okuyup JdbcBatchItemWriter ile db yazdıracağız
 
+    private final OrderItemMappingProcessor orderItemProcessor;
+
+    public RealImportOrderJobConfig(OrderItemMappingProcessor orderItemProcessor) {
+        this.orderItemProcessor = orderItemProcessor;
+    }
+
+
     @Bean
+    @StepScope
     public FlatFileItemReader<RawOrder> csvItemReader(
             @Value("${batch.input-dir}") String inputDir,
             @Value("#{jobParameters['runDate']}") String runDate){
@@ -45,6 +55,7 @@ public class RealImportOrderJobConfig {
 
 
     @Bean
+    @StepScope
     public JdbcBatchItemWriter<Order> jdbcBatchItemWriter(DataSource dataSource){
         return new JdbcBatchItemWriterBuilder<Order>()
                 .dataSource(dataSource)
@@ -64,13 +75,12 @@ public class RealImportOrderJobConfig {
             JobRepository jobRepository,
             PlatformTransactionManager platformTransactionManager,
             FlatFileItemReader<RawOrder> csvItemReader,
-            OrderItemMappingProcessor orderItemMappingProcessor,
             JdbcBatchItemWriter<Order> jdbcBatchItemWriter
     ){
         return  new StepBuilder("importOrderDataFromCsvStep",jobRepository)
                 .<RawOrder,Order>chunk(2,platformTransactionManager)
                 .reader(csvItemReader)
-                .processor(orderItemMappingProcessor)
+                .processor(orderItemProcessor)
                 .writer(jdbcBatchItemWriter)
                 .build();
     }
@@ -83,8 +93,6 @@ public class RealImportOrderJobConfig {
                 .start(importOrderDataFromCsvStep)
                 .build();
     }
-
-
 
 
 }
