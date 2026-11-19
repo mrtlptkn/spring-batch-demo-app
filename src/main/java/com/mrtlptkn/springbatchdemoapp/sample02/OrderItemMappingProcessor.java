@@ -6,12 +6,17 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 @Component
 @StepScope
 public class OrderItemMappingProcessor implements ItemProcessor<RawOrder,Order> {
+
+    private static final ZoneId ISTANBUL = ZoneId.of("Europe/Istanbul");
+
+
     @Override
     public Order process(RawOrder item) throws Exception {
         // id validation
@@ -38,6 +43,6 @@ public class OrderItemMappingProcessor implements ItemProcessor<RawOrder,Order> 
         } catch (DateTimeParseException e) {
             throw new InvalidOrderException("tarih formatı geçersiz");
         }
-        return new Order(id, item.customer().trim(), amount, orderDate);
+        return new Order(id, item.customer().trim(), amount, orderDate, LocalDate.now(ISTANBUL));
     }
 }

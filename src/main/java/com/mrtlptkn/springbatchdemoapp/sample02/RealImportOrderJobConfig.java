@@ -8,10 +8,14 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
+import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
+import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.batch.item.file.builder.FlatFileItemWriterBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +27,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 import java.nio.file.Path;
 import java.sql.BatchUpdateException;
+import java.time.LocalDate;
 
 @Configuration
 public class RealImportOrderJobConfig {
@@ -32,11 +37,13 @@ public class RealImportOrderJobConfig {
     private final OrderItemMappingProcessor orderItemProcessor;
 //    private final CustomCsvItemReader customCsvItemReader;
     private final SkippedOrderListener skippedOrderListener;
+    private final  ImportJobStepExecutionListener importJobStepExecutionListener;
 
-    public RealImportOrderJobConfig(OrderItemMappingProcessor orderItemProcessor, CustomCsvItemReader customCsvItemReader, SkippedOrderListener skippedOrderListener) {
+    public RealImportOrderJobConfig(OrderItemMappingProcessor orderItemProcessor, CustomCsvItemReader customCsvItemReader, SkippedOrderListener skippedOrderListener, ImportJobStepExecutionListener importJobStepExecutionListener) {
         this.orderItemProcessor = orderItemProcessor;
 //        this.customCsvItemReader = customCsvItemReader;
         this.skippedOrderListener = skippedOrderListener;
+        this.importJobStepExecutionListener = importJobStepExecutionListener;
     }
 
 
@@ -96,15 +103,76 @@ public class RealImportOrderJobConfig {
                 .skip(DuplicateKeyException.class)
                 .skipLimit(Integer.MAX_VALUE) // Skip Limit vermezsek default 0 olarak gördü hata toleransı kalmadı.
                 .listener(skippedOrderListener)
+                .listener(importJobStepExecutionListener)
+                .build();
+    }
+
+
+    // Archieve Step
+    // JdbcCursorItemReader -> Tek seferde SQL den filtrelenmiş bir veri okuyacak isek bu durumda kullanabiliriz.
+    // Okunan tüm veriler tek seferde okunup memory alınır. Dezavantajı Memory Şişer
+    // JdbcPagedItemReader var Milyonluk kayıtları okurken server side paging yapar
+    @Bean
+    @StepScope
+    public JdbcCursorItemReader<Order> jdbcCursorItemReader(DataSource dataSource,
+                                                            @Value("#{jobParameters['runDate']}") String runDate) {
+
+        LocalDate importDate = LocalDate.parse(runDate);
+
+        return new JdbcCursorItemReaderBuilder<Order>()
+                .name("archieveReader")
+                .dataSource(dataSource).sql("SELECT * FROM orders WHERE runDate = ? ORDER BY order_id")
+                .preparedStatementSetter((ps) -> ps.setObject(1, importDate))
+                .rowMapper((rs, rowNum) -> new Order(
+                        rs.getLong("order_id"),
+                        rs.getString("customer"),
+                        rs.getBigDecimal("amount"),
+                        rs.getObject("order_date",LocalDate.class),
+                        rs.getObject("runDate",LocalDate.class)))
+                .build();
+
+    }
+
+    @Bean
+    @StepScope
+    public FlatFileItemWriter<Order> archieveWriter(@Value("#{jobParameters['runDate']}") String runDate, @Value("${batch.output-dir}") String outputDir){
+        return  new FlatFileItemWriterBuilder<Order>()
+                .name("archieveWriter")
+                .resource(new FileSystemResource(Path.of(outputDir + "orders-"+runDate+".csv")))
+                .delimited()
+                .delimiter(",")
+                .names("orderId","customer","amount","orderDate","runDate")
                 .build();
     }
 
 
     @Bean
-    public Job importDataFromCsvOrderJob(JobRepository jobRepository, Step importOrderDataFromCsvStep){
+    public Step archieveStep(
+            JobRepository jobRepository,
+            PlatformTransactionManager platformTransactionManager,
+            JdbcCursorItemReader<Order> jdbcCursorItemReader,
+            FlatFileItemWriter<Order> archieveWriter
+    ){
+        return  new StepBuilder("archieveStep",jobRepository)
+                .<Order,Order>chunk(10,platformTransactionManager)
+                .reader(jdbcCursorItemReader)
+                .writer(archieveWriter)
+                .build();
+    }
+
+
+    // ImportStep eğer başarılı bir şekilde tamamlanırsa biz order tablosundan bugünün import edilen verilerini
+    // arşiv olarak csv dosyasında saklayabiliriz.
+    // COMPLETED Step.getExecution.getStatus() üzerinden gelir.
+
+    @Bean
+    public Job importDataFromCsvOrderJob(JobRepository jobRepository, Step importOrderDataFromCsvStep,Step archieveStep){
         return  new JobBuilder("importDataFromCsvOrderJob",jobRepository)
                 //.preventRestart() // Restart etmeyi engelle
                 .start(importOrderDataFromCsvStep)
+                .on("COMPLETED")
+                .to(archieveStep)
+                .end()
                 .build();
     }
 
