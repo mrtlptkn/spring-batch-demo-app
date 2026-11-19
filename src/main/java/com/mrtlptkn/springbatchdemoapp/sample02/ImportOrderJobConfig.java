@@ -23,6 +23,7 @@ public class ImportOrderJobConfig {
         this.orderItemWriter = orderItemWriter;
     }
 
+    // JdbcBatchUpdateException
     @Bean
     public Step importOrderStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager){
         return  new StepBuilder("importOrderStep",jobRepository)

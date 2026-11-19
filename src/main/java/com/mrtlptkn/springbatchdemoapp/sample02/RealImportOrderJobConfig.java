@@ -10,6 +10,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -27,9 +28,11 @@ public class RealImportOrderJobConfig {
     // Burada FlatFileItemReader ile csv okuyup JdbcBatchItemWriter ile db yazdıracağız
 
     private final OrderItemMappingProcessor orderItemProcessor;
+//    private final CustomCsvItemReader customCsvItemReader;
 
-    public RealImportOrderJobConfig(OrderItemMappingProcessor orderItemProcessor) {
+    public RealImportOrderJobConfig(OrderItemMappingProcessor orderItemProcessor, CustomCsvItemReader customCsvItemReader) {
         this.orderItemProcessor = orderItemProcessor;
+//        this.customCsvItemReader = customCsvItemReader;
     }
 
 
@@ -82,6 +85,11 @@ public class RealImportOrderJobConfig {
                 .reader(csvItemReader)
                 .processor(orderItemProcessor)
                 .writer(jdbcBatchItemWriter)
+                .faultTolerant()
+                .skip(FlatFileParseException.class) // FlatFile Okuma hatası
+                .skip(InvalidOrderException.class) // Bide Process işleminde eğer exception fırlatılırsa o satırı atlat
+                .skipLimit(10) // 10 satır hatayı atalatabilirsin
+                .listener(new SkippedOrderListener())
                 .build();
     }
 
