@@ -16,11 +16,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.nio.file.Path;
+import java.sql.BatchUpdateException;
 
 @Configuration
 public class RealImportOrderJobConfig {
@@ -88,7 +90,9 @@ public class RealImportOrderJobConfig {
                 .faultTolerant()
                 .skip(FlatFileParseException.class) // FlatFile Okuma hatası
                 .skip(InvalidOrderException.class) // Bide Process işleminde eğer exception fırlatılırsa o satırı atlat
-                .skipLimit(10) // 10 satır hatayı atalatabilirsin
+                .skip(BatchUpdateException.class) // JdbcBatchItemWriter'da hata olursa o satırı atlat
+                .skip(DuplicateKeyException.class)
+                .skipLimit(Integer.MAX_VALUE) // Skip Limit vermezsek default 0 olarak gördü hata toleransı kalmadı.
                 .listener(new SkippedOrderListener())
                 .build();
     }

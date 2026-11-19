@@ -21,7 +21,7 @@ public class SkippedOrderListener implements SkipListener<RawOrder,Order> {
 
     @Override
     public void onSkipInProcess(RawOrder item, Throwable t) {
-        LOGGER.warn("Okuma atlatması orderId {}, customer {}, message:{}",
+        LOGGER.warn("Process atlatması orderId {}, customer {}, message:{}",
                 item.orderId(), item.customer(), t.getMessage());
         SkipListener.super.onSkipInProcess(item, t);
     }
