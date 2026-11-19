@@ -22,13 +22,18 @@ public class ProductResponseApiClientConfig {
     @Bean
     @StepScope
     public ODataPagedItemReader itemReader(RestClient.Builder restClientBuilder) {
-        return new ODataPagedItemReader(restClientBuilder.build(),"https://services.odata.org/northwind/northwind.svc/Products",2);
+        return new ODataPagedItemReader(restClientBuilder.build(),"https://services.odata.org/northwind/northwind.svc/Products",10);
     }
 
     @Bean
     @StepScope
     public ItemWriter<ProductResponse> productItemWriter() {
         return items -> {
+
+            for (ProductResponse item : items) {
+                log.info("Product: {}", item.productName());
+            }
+
             log.info("Yazılacak ürün sayısı: {}", items.size());
         };
     }
