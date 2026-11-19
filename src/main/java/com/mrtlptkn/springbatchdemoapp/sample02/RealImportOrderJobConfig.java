@@ -31,10 +31,12 @@ public class RealImportOrderJobConfig {
 
     private final OrderItemMappingProcessor orderItemProcessor;
 //    private final CustomCsvItemReader customCsvItemReader;
+    private final SkippedOrderListener skippedOrderListener;
 
-    public RealImportOrderJobConfig(OrderItemMappingProcessor orderItemProcessor, CustomCsvItemReader customCsvItemReader) {
+    public RealImportOrderJobConfig(OrderItemMappingProcessor orderItemProcessor, CustomCsvItemReader customCsvItemReader, SkippedOrderListener skippedOrderListener) {
         this.orderItemProcessor = orderItemProcessor;
 //        this.customCsvItemReader = customCsvItemReader;
+        this.skippedOrderListener = skippedOrderListener;
     }
 
 
@@ -93,7 +95,7 @@ public class RealImportOrderJobConfig {
                 .skip(BatchUpdateException.class) // JdbcBatchItemWriter'da hata olursa o satırı atlat
                 .skip(DuplicateKeyException.class)
                 .skipLimit(Integer.MAX_VALUE) // Skip Limit vermezsek default 0 olarak gördü hata toleransı kalmadı.
-                .listener(new SkippedOrderListener())
+                .listener(skippedOrderListener)
                 .build();
     }
 
