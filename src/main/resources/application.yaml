@@ -16,7 +16,7 @@ spring:
   sql:
     init:
       mode: always
-      schema-locations: classpath:sql/orders.sql
+      schema-locations: classpath:sql/orders.sql,classpath:sql/non-crtical-products.sql
 
 batch:
   reject-threshold: 5   # Bu sayıdan fazla kayıt atlanırsa kredi kontrolü yapılmaz

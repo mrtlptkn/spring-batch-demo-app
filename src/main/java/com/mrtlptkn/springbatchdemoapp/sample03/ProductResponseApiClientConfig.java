@@ -22,6 +22,13 @@ import org.springframework.web.client.RestClient;
 public class ProductResponseApiClientConfig {
 
     private final  static Logger log = LoggerFactory.getLogger(ProductResponseApiClientConfig.class);
+    private final ProductItemWriter itemWriter;
+    private final ProductItemProcessor itemProcessor;
+
+    public ProductResponseApiClientConfig(ProductItemWriter itemWriter, ProductItemProcessor itemProcessor) {
+        this.itemWriter = itemWriter;
+        this.itemProcessor = itemProcessor;
+    }
 
     @Bean
     @StepScope
@@ -43,7 +50,7 @@ public class ProductResponseApiClientConfig {
     }
 
     @Bean
-    public Step productStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager, ODataPagedItemReader itemReader, ItemWriter<ProductResponse> itemWriter){
+    public Step productStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager, ODataPagedItemReader itemReader){
 
         // Eğer bu ayarı kurumsal projelerde yapmazsak kendisi arka arkaya retry yapar. ve sistem kaynaklarını bunun gibi süre verilmeyen retry ifadeler ciddi anlamda tüketir.
 
@@ -55,6 +62,7 @@ public class ProductResponseApiClientConfig {
         return new StepBuilder("productStep",jobRepository)
                 .<ProductResponse,ProductResponse>chunk(2,platformTransactionManager)
                 .reader(itemReader)
+                .processor(itemProcessor)
                 .writer(itemWriter)
                 .faultTolerant()
                 // Process ve Write adımda -> Veri kaynağına anlık kesinti olabilir.
