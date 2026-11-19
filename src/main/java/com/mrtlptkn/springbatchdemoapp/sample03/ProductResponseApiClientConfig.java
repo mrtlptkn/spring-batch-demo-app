@@ -8,7 +8,9 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.TransientDataAccessException;
@@ -24,10 +26,12 @@ public class ProductResponseApiClientConfig {
     private final  static Logger log = LoggerFactory.getLogger(ProductResponseApiClientConfig.class);
     private final ProductItemWriter itemWriter;
     private final ProductItemProcessor itemProcessor;
+    private final CriticalStockProductsDecider decider;
 
-    public ProductResponseApiClientConfig(ProductItemWriter itemWriter, ProductItemProcessor itemProcessor) {
+    public ProductResponseApiClientConfig(ProductItemWriter itemWriter, ProductItemProcessor itemProcessor, CriticalStockProductsDecider decider) {
         this.itemWriter = itemWriter;
         this.itemProcessor = itemProcessor;
+        this.decider = decider;
     }
 
     @Bean
@@ -78,9 +82,47 @@ public class ProductResponseApiClientConfig {
     }
 
     @Bean
-    public Job productJob(JobRepository jobRepository, Step productStep){
+    public Tasklet alertTasklet() {
+        return (contribution, chunkContext) -> {
+            log.info("Critical Stock Products Alert Tasklet çalıştı.");
+            return RepeatStatus.FINISHED;
+        };
+    }
+
+    @Bean
+    public Step criticalStockProductsStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager,Tasklet alertTasklet){
+        return new StepBuilder("criticalStockProductsStep",jobRepository)
+                .tasklet(alertTasklet,platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Tasklet reportTasklet() {
+        return (contribution, chunkContext) -> {
+            log.info("Report Tasklet çalıştı.");
+            return RepeatStatus.FINISHED;
+        };
+    }
+
+    @Bean
+    public Step productReportStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager,Tasklet reportTasklet){
+        return new StepBuilder("productReportStep",jobRepository)
+                .tasklet(reportTasklet,platformTransactionManager)
+                .build();
+    }
+
+
+    @Bean
+    public Job productJob(JobRepository jobRepository, Step productStep, Step criticalStockProductsStep, Step productReportStep){
         return new JobBuilder("productJob",jobRepository)
                 .start(productStep)
+                .next(decider) // adımı next ile karar vericiye bırak
+                .on("HIGH_CRITICAL_STOCK") // HIGH_CRITICAL_STOCK alındıysa criticalStockProductsStep ilgili step
+                .to(criticalStockProductsStep)
+                .from(decider).on("LOW_CRITICAL_STOCK")// LOW_CRITICAL_STOCK Repor Step
+                .to(productReportStep)
+                .from(decider).on("*").fail() // bunun dışındaki herhangi bir senaryoda akışı fail et.
+                .end()
                 .build();
     }
 
