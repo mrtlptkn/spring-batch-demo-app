@@ -2,7 +2,6 @@ package com.mrtlptkn.springbatchdemoapp.sample02;
 
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
@@ -70,7 +69,7 @@ public class RealImportOrderJobConfig {
 
     @Bean
     @StepScope
-    public JdbcBatchItemWriter<Order> jdbcBatchItemWriter(DataSource dataSource){
+    public JdbcBatchItemWriter<Order> jdbcBatchItemWriter(DataSource dataSource, @Value("#{jobParameters['runDate']}") String runDate){
         return new JdbcBatchItemWriterBuilder<Order>()
                 .dataSource(dataSource)
                 .sql("INSERT INTO orders (order_id, customer, amount, order_date, runDate) " +
@@ -80,7 +79,7 @@ public class RealImportOrderJobConfig {
                         .addValue("customer", o.customer())
                         .addValue("amount", o.amount())
                         .addValue("orderDate", o.orderDate())
-                        .addValue("runDate", LocalDate.now()))
+                        .addValue("runDate", LocalDate.parse(runDate)))
                 .build();
     }
 
@@ -136,9 +135,9 @@ public class RealImportOrderJobConfig {
 
     @Bean
     @StepScope
-    public FlatFileItemWriter<Order> archieveWriter(@Value("#{jobParameters['runDate']}") String runDate, @Value("${batch.archive-dir}") String archieveDir){
+    public FlatFileItemWriter<Order> archiveWriter(@Value("#{jobParameters['runDate']}") String runDate, @Value("${batch.archive-dir}") String archieveDir){
         return  new FlatFileItemWriterBuilder<Order>()
-                .name("archieveWriter")
+                .name("archiveWriter")
                 .resource(new FileSystemResource(Path.of(archieveDir, "orders-"+runDate+".csv")))
                 .delimited()
                 .delimiter(",")
@@ -148,13 +147,13 @@ public class RealImportOrderJobConfig {
 
 
     @Bean
-    public Step archieveStep(
+    public Step archiveStep(
             JobRepository jobRepository,
             PlatformTransactionManager platformTransactionManager,
             JdbcCursorItemReader<Order> jdbcCursorItemReader,
             FlatFileItemWriter<Order> archieveWriter
     ){
-        return  new StepBuilder("archieveStep",jobRepository)
+        return  new StepBuilder("archiveStep",jobRepository)
                 .<Order,Order>chunk(10,platformTransactionManager)
                 .reader(jdbcCursorItemReader)
                 .writer(archieveWriter)
@@ -167,12 +166,14 @@ public class RealImportOrderJobConfig {
     // COMPLETED Step.getExecution.getStatus() üzerinden gelir.
 
     @Bean
-    public Job importDataFromCsvOrderJob(JobRepository jobRepository, Step importOrderDataFromCsvStep,Step archieveStep){
+    public Job importDataFromCsvOrderJob(JobRepository jobRepository, Step importOrderDataFromCsvStep,Step archiveStep){
         return  new JobBuilder("importDataFromCsvOrderJob",jobRepository)
                 //.preventRestart() // Restart etmeyi engelle
+//                .start(importOrderDataFromCsvStep)
+//                .next(archiveStep) // hata dahi olsa tetiklenir.
                 .start(importOrderDataFromCsvStep)
                 .on("COMPLETED")
-                .to(archieveStep)
+                .to(archiveStep)
                 .end()
                 .build();
     }
