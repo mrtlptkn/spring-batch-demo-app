@@ -13,7 +13,7 @@ public class ProductItemProcessor implements ItemProcessor<ProductResponse,Produ
     @Override
     public ProductResponse process(ProductResponse item) throws Exception {
 
-        if(item.unitsInStock() <= 10) // Burada verilerimiz yazılmadan önce kritik bir stok eşik değerine sahip ise filtreliyoruz
+        if(item.unitsInStock() <= 20) // Burada verilerimiz yazılmadan önce kritik bir stok eşik değerine sahip ise filtreliyoruz
             return null;
 
         return item;

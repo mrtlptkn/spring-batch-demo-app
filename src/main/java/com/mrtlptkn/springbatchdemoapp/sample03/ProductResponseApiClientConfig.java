@@ -36,18 +36,18 @@ public class ProductResponseApiClientConfig {
         return new ODataPagedItemReader(restClientBuilder.build(),"https://services.odata.org/northwind/northwind.svc/Products",10);
     }
 
-    @Bean
-    @StepScope
-    public ItemWriter<ProductResponse> productItemWriter() {
-        return items -> {
-
-            for (ProductResponse item : items) {
-                log.info("Product: {}", item.productName());
-            }
-
-            log.info("Yazılacak ürün sayısı: {}", items.size());
-        };
-    }
+//    @Bean
+//    @StepScope
+//    public ItemWriter<ProductResponse> productItemWriter() {
+//        return items -> {
+//
+//            for (ProductResponse item : items) {
+//                log.info("Product: {}", item.productName());
+//            }
+//
+//            log.info("Yazılacak ürün sayısı: {}", items.size());
+//        };
+//    }
 
     @Bean
     public Step productStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager, ODataPagedItemReader itemReader){
