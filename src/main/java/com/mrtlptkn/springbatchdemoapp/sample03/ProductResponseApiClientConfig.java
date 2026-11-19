@@ -11,7 +11,11 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.retry.backoff.BackOffPolicy;
+import org.springframework.retry.backoff.ExponentialBackOffPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -40,11 +44,29 @@ public class ProductResponseApiClientConfig {
 
     @Bean
     public Step productStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager, ODataPagedItemReader itemReader, ItemWriter<ProductResponse> itemWriter){
+
+        // Eğer bu ayarı kurumsal projelerde yapmazsak kendisi arka arkaya retry yapar. ve sistem kaynaklarını bunun gibi süre verilmeyen retry ifadeler ciddi anlamda tüketir.
+
+        ExponentialBackOffPolicy backOffPolicy = new ExponentialBackOffPolicy();
+        backOffPolicy.setInitialInterval(300); // ilk başlanıç 2.deneme 300ms sonra
+        backOffPolicy.setMultiplier(2.0); // her bir denemede 300 -> 600 -> 1200 -> 2400ms -> 3600ms
+        backOffPolicy.setMaxInterval(30000); // 3sn denemenin bitmesi için süre tanıdım sana
+
         return new StepBuilder("productStep",jobRepository)
                 .<ProductResponse,ProductResponse>chunk(2,platformTransactionManager)
                 .reader(itemReader)
                 .writer(itemWriter)
+                .faultTolerant()
+                // Process ve Write adımda -> Veri kaynağına anlık kesinti olabilir.
+                // Process adımında veri işlenirken hatalı işlem yapılabilir.
+                // retry bu durumlarda çalışır. read kısmında çalışmaz. eğer api call işlemlerinde read ederken bağlantı kopukluğu durumlarını abstractPageReader üzerinden custom yönetmemiz gerekir.
+                .retry(TransientDataAccessException.class) // anlık veri kaynağına giderken kesinti olursa veriyi çektik işleyemedik diye dayanıklılık sağlayan bir yöntem
+                .retryLimit(3) // 3 kez dene
+                .backOffPolicy(backOffPolicy)
+                .noSkip(HttpClientErrorException.class) // 4xx Client hataları varsa ne atlatma nede retry et -> Bu durumda zaten Job failed olucak boşuna kodun geri kalan kısmını çalıştırmayalım.
                 .build();
+
+        // Not: Retry işlemleri Skip öncesi çalışan işlemlerdir.
     }
 
     @Bean
