@@ -73,13 +73,14 @@ public class RealImportOrderJobConfig {
     public JdbcBatchItemWriter<Order> jdbcBatchItemWriter(DataSource dataSource){
         return new JdbcBatchItemWriterBuilder<Order>()
                 .dataSource(dataSource)
-                .sql("INSERT INTO orders (order_id, customer, amount, order_date) " +
-                        "VALUES (:orderId, :customer, :amount, :orderDate)")
+                .sql("INSERT INTO orders (order_id, customer, amount, order_date, runDate) " +
+                        "VALUES (:orderId, :customer, :amount, :orderDate, :runDate)")
                 .itemSqlParameterSourceProvider(o -> new MapSqlParameterSource()
                         .addValue("orderId", o.orderId())
                         .addValue("customer", o.customer())
                         .addValue("amount", o.amount())
-                        .addValue("orderDate", o.orderDate()))
+                        .addValue("orderDate", o.orderDate())
+                        .addValue("runDate", LocalDate.now()))
                 .build();
     }
 
@@ -135,10 +136,10 @@ public class RealImportOrderJobConfig {
 
     @Bean
     @StepScope
-    public FlatFileItemWriter<Order> archieveWriter(@Value("#{jobParameters['runDate']}") String runDate, @Value("${batch.output-dir}") String outputDir){
+    public FlatFileItemWriter<Order> archieveWriter(@Value("#{jobParameters['runDate']}") String runDate, @Value("${batch.archive-dir}") String archieveDir){
         return  new FlatFileItemWriterBuilder<Order>()
                 .name("archieveWriter")
-                .resource(new FileSystemResource(Path.of(outputDir + "orders-"+runDate+".csv")))
+                .resource(new FileSystemResource(Path.of(archieveDir, "orders-"+runDate+".csv")))
                 .delimited()
                 .delimiter(",")
                 .names("orderId","customer","amount","orderDate","runDate")
