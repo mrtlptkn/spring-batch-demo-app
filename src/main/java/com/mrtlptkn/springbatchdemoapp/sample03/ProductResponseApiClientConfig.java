@@ -61,7 +61,7 @@ public class ProductResponseApiClientConfig {
         ExponentialBackOffPolicy backOffPolicy = new ExponentialBackOffPolicy();
         backOffPolicy.setInitialInterval(300); // ilk başlanıç 2.deneme 300ms sonra
         backOffPolicy.setMultiplier(2.0); // her bir denemede 300 -> 600 -> 1200 -> 2400ms -> 3600ms
-        backOffPolicy.setMaxInterval(30000); // 3sn denemenin bitmesi için süre tanıdım sana
+        backOffPolicy.setMaxInterval(3000); // 3sn denemenin bitmesi için süre tanıdım sana
 
         return new StepBuilder("productStep",jobRepository)
                 .<ProductResponse,ProductResponse>chunk(2,platformTransactionManager)
@@ -75,7 +75,7 @@ public class ProductResponseApiClientConfig {
                 .retry(TransientDataAccessException.class) // anlık veri kaynağına giderken kesinti olursa veriyi çektik işleyemedik diye dayanıklılık sağlayan bir yöntem
                 .retryLimit(3) // 3 kez dene
                 .backOffPolicy(backOffPolicy)
-                .noSkip(HttpClientErrorException.class) // 4xx Client hataları varsa ne atlatma nede retry et -> Bu durumda zaten Job failed olucak boşuna kodun geri kalan kısmını çalıştırmayalım.
+                .noSkip(HttpClientErrorException.class) // 4xx Client hataları varsa job direk kesilir.
                 .build();
 
         // Not: Retry işlemleri Skip öncesi çalışan işlemlerdir.
@@ -111,6 +111,7 @@ public class ProductResponseApiClientConfig {
                 .build();
     }
 
+    // Decision Flow -> Karara bağlı akışlar.
 
     @Bean
     public Job productJob(JobRepository jobRepository, Step productStep, Step criticalStockProductsStep, Step productReportStep){

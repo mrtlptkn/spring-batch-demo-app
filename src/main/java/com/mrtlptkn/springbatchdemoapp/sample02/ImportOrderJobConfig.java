@@ -34,12 +34,14 @@ public class ImportOrderJobConfig {
                 .build();
     }
 
+    // Sequential Flow ->
 
     @Bean("importOrderJob")
-    public Job importOrderJob(JobRepository jobRepository,Step importOrderStep){
+    public Job importOrderJob(JobRepository jobRepository,Step importOrderStep, Step prepareDailyTaskStep){
         return  new JobBuilder("importOrderJob",jobRepository)
                 //.preventRestart() // Restart etmeyi engelle
-                .start(importOrderStep)
+                .start(prepareDailyTaskStep)
+                .next(importOrderStep)
                 .build();
     }
 

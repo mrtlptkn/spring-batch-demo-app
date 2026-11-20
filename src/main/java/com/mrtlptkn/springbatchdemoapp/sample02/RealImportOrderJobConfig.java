@@ -165,6 +165,8 @@ public class RealImportOrderJobConfig {
     // arşiv olarak csv dosyasında saklayabiliriz.
     // COMPLETED Step.getExecution.getStatus() üzerinden gelir.
 
+    // Conditional Flow -> Akışı belirli bir step durumuna göre yönlendirme
+
     @Bean
     public Job importDataFromCsvOrderJob(JobRepository jobRepository, Step importOrderDataFromCsvStep,Step archiveStep){
         return  new JobBuilder("importDataFromCsvOrderJob",jobRepository)
