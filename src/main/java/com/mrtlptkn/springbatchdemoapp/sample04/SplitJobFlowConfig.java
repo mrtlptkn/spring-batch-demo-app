@@ -45,7 +45,7 @@ public class SplitJobFlowConfig {
     // DaiyPrepare -> Import -> Archieve Akışı
 
     @Bean
-    public SimpleFlow importJobFlow(Step prepareDailyTaskStep, Step importOrderDataFromCsvStep,Step archiveStep ){
+    public SimpleFlow importJobFlow(Step prepareDailyTaskStep, Step importOrderDataFromCsvStep,Step archiveStep){
         return  new FlowBuilder<SimpleFlow>("importJobFlow")
                 .start(prepareDailyTaskStep)
                 .next(importOrderDataFromCsvStep)
