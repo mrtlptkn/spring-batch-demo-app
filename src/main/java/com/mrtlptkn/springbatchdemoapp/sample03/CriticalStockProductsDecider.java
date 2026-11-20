@@ -11,8 +11,11 @@ import org.springframework.stereotype.Component;
 // Uyarı step seviyesinde bir karar vermiyoruz. Job seviyesinde akışın hangi steplere aktarılacağının kararını veriyoruz.
 
 
+// Not: Split Flow akışlarında Decider kullanımı thread arasında çalışırken @JobScope ile aşretlenmemeli. Bu durumda Farklı bir Thread Job Scope kaybediyor.
+// Senkron çalışırken prolem yok.
+
 @Component
-@JobScope
+//@JobScope // Senkron Thread üzerinde Job seviyesinde çalışır.
 public class CriticalStockProductsDecider implements JobExecutionDecider {
 
     // Burada karar verirken job seviyesinde bir karar vermek lazım. Bu sebeple bu karar servisinin birkaç farklı adım job çalışırken tetikleneceğini düşünerek çok falza veri okuma ve APİ call gibi isteklerde bunu dikkatli kullanalım.

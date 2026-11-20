@@ -38,6 +38,7 @@ public class SplitJobFlowConfig {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2); // Thread pooldan bana 2 tane bu iş thread tahsis et
         executor.setMaxPoolSize(2);
+        executor.setThreadNamePrefix("split-thread-"); // Hangi thread çalıştırıcak.
         executor.initialize();
         return executor;
     }
@@ -57,6 +58,7 @@ public class SplitJobFlowConfig {
     // NonCriticalStockProduct Flow
     @Bean
     public SimpleFlow importNonCriticalProductFromApi(Step productStep,Step criticalStockProductsStep, Step productReportStep) {
+
         return new FlowBuilder<SimpleFlow>("importNonCriticalProductFromApi")
                 .start(productStep)
                 .next(decider)
@@ -65,6 +67,7 @@ public class SplitJobFlowConfig {
                 .from(decider)
                 .on("LOW_CRITICAL_STOCK")
                 .to(productReportStep)
+                .from(decider).on("*").fail() // bunun dışındaki herhangi bir senaryoda akışı fail et.
                 .end();
     }
 
